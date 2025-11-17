@@ -5,14 +5,15 @@
 
 /**
  * Applies Sobel edge detection to identify major contours
- * Returns gradient direction at each pixel for tile alignment
+ * Returns gradient direction and magnitude at each pixel for tile alignment
  * @param imageData - Source image data
- * @returns Float32Array of gradient angles in radians
+ * @returns Object with angles and magnitudes Float32Arrays
  */
-export function detectEdges(imageData: ImageData): Float32Array {
+export function detectEdges(imageData: ImageData): { angles: Float32Array, magnitudes: Float32Array } {
   const width = imageData.width
   const height = imageData.height
-  const gradients = new Float32Array(width * height)
+  const angles = new Float32Array(width * height)
+  const magnitudes = new Float32Array(width * height)
 
   // Sobel kernels
   const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1]
@@ -39,9 +40,11 @@ export function detectEdges(imageData: ImageData): Float32Array {
       }
 
       // Gradient magnitude and direction
-      gradients[y * width + x] = Math.atan2(gy, gx)
+      const mag = Math.sqrt(gx * gx + gy * gy)
+      magnitudes[y * width + x] = mag
+      angles[y * width + x] = Math.atan2(gy, gx)
     }
   }
 
-  return gradients
+  return { angles, magnitudes }
 }

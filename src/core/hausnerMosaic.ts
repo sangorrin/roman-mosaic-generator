@@ -1,12 +1,8 @@
-/**
- * Hausner's Decorative Mosaic Algorithm (SIGGRAPH 2001)
- * Implements flow field, centroidal Voronoi relaxation, and tile orientation
- * Reference: https://www.dgp.toronto.edu/papers/ahausner_SIGGRAPH2001.pdf
- */
 import type { MosaicTile } from '../types/mosaic';
+import { detectEdges } from './edgeDetector';
 
 export interface HausnerConfig {
-  tileSize: number;
+  numTiles: number;
   palette: { hex: string; name: string }[];
   groutWidth: number;
   rotationVariance: number;
@@ -23,57 +19,104 @@ export function generateHausnerMosaic(
   config: HausnerConfig
 ): MosaicTile[] {
   // 1. Compute flow field from image edges
-  let gradients: Float32Array | null = null;
-  try {
-    // @ts-ignore
-    const { detectEdges } = require('./edgeDetector');
-    gradients = detectEdges(imageData);
-  } catch (e) {
-    gradients = null;
-  }
+  const { angles, magnitudes } = detectEdges(imageData);
 
-  // 2. Initialize tile sites (random or grid)
+  // 2. Initialize tile sites randomly
   const width = imageData.width;
   const height = imageData.height;
-  const tileSize = config.tileSize;
-  const gridCols = Math.floor(width / tileSize);
-  const gridRows = Math.floor(height / tileSize);
-  const sites: { x: number; y: number }[] = [];
-  for (let row = 0; row < gridRows; row++) {
-    for (let col = 0; col < gridCols; col++) {
-      const jitter = tileSize * 0.2;
-      const x = col * tileSize + tileSize / 2 + (Math.random() - 0.5) * jitter;
-      const y = row * tileSize + tileSize / 2 + (Math.random() - 0.5) * jitter;
-      sites.push({ x, y });
-    }
+  const numTiles = config.numTiles;
+  const sites: { x: number; y: number; theta: number }[] = [];
+  for (let i = 0; i < numTiles; i++) {
+    sites.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      theta: 0 // will be updated
+    });
   }
 
-  // 3. Centroidal Voronoi relaxation, guided by flow field
-  try {
-    // @ts-ignore
-    const { relaxSites } = require('./centroidalVoronoi');
-    const relaxedSites = relaxSites(sites, width, height, 10);
+  // 3. Centroidal Voronoi relaxation with rotated Manhattan distance
+  const iterations = 5;
+  for (let iter = 0; iter < iterations; iter++) {
+    // Update orientations
+    for (const site of sites) {
+      if (angles) {
+        const gx = Math.round(site.x);
+        const gy = Math.round(site.y);
+        if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
+          const idx = gy * width + gx;
+          site.theta = angles[idx];
+        }
+      }
+    }
+
+    // Compute Voronoi assignment using rotated Manhattan
+    const assignment = new Uint32Array(width * height);
+    const INVALID = sites.length;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let minDist = Infinity;
+        let bestSite = 0;
+        for (let i = 0; i < sites.length; i++) {
+          const site = sites[i];
+          const dx = x - site.x;
+          const dy = y - site.y;
+          const cos = Math.cos(site.theta);
+          const sin = Math.sin(site.theta);
+          const rx = dx * cos - dy * sin;
+          const ry = dx * sin + dy * cos;
+          const dist = Math.abs(rx) + Math.abs(ry);
+          if (dist < minDist) {
+            minDist = dist;
+            bestSite = i;
+          }
+        }
+        assignment[y * width + x] = bestSite;
+      }
+    }
+
+    // Edge avoidance: recolor strong edge pixels to block them
+    if (magnitudes) {
+      let maxMag = 0;
+      for (let i = 0; i < magnitudes.length; i++) {
+        if (magnitudes[i] > maxMag) maxMag = magnitudes[i];
+      }
+      const threshold = maxMag / 4;
+      for (let i = 0; i < assignment.length; i++) {
+        if (magnitudes[i] > threshold) {
+          assignment[i] = INVALID;
+        }
+      }
+    }
+
+    // Compute centroids
+    const centroids = sites.map(() => ({ x: 0, y: 0, count: 0 }));
+    for (let idx = 0; idx < assignment.length; idx++) {
+      const siteIdx = assignment[idx];
+      if (siteIdx < sites.length) {
+        const y = Math.floor(idx / width);
+        const x = idx % width;
+        centroids[siteIdx].x += x;
+        centroids[siteIdx].y += y;
+        centroids[siteIdx].count++;
+      }
+    }
     for (let i = 0; i < sites.length; i++) {
-      sites[i] = relaxedSites[i];
+      if (centroids[i].count > 0) {
+        sites[i].x = centroids[i].x / centroids[i].count;
+        sites[i].y = centroids[i].y / centroids[i].count;
+      }
     }
-  } catch (e) {
-    // fallback: use original sites
   }
 
-  // 4. Tile placement, orientation, color assignment
+  // 4. Compute tile size
+  const tileSize = Math.sqrt((width * height) / numTiles);
+
+  // 5. Tile placement, orientation, color assignment
   const tiles: MosaicTile[] = [];
   for (let i = 0; i < sites.length; i++) {
     const site = sites[i];
-    // Sample flow field direction at site
-    let rotation = 0;
-    if (gradients) {
-      const gx = Math.round(site.x);
-      const gy = Math.round(site.y);
-      if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
-        const idx = gy * width + gx;
-        rotation = gradients[idx] * 180 / Math.PI;
-      }
-    }
+    // Orientation from site.theta
+    let rotation = site.theta * 180 / Math.PI;
     // Add random rotation variance
     rotation += (Math.random() - 0.5) * config.rotationVariance * 2;
     // Clamp rotation

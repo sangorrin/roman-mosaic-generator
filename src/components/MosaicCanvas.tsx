@@ -5,7 +5,7 @@
  */
 // ...existing code...
 import type { MosaicTile } from '../types/mosaic';
-function MosaicCanvas({ tiles }: { tiles?: MosaicTile[] | null }) {
+function MosaicCanvas({ tiles, imageData }: { tiles?: MosaicTile[] | null, imageData?: ImageData | null }) {
   return (
     <div style={{
       border: '1px solid #ddd',
@@ -19,8 +19,8 @@ function MosaicCanvas({ tiles }: { tiles?: MosaicTile[] | null }) {
       {tiles && tiles.length > 0 ? (
         <div style={{ position: 'relative', width: 'fit-content', margin: '0 auto' }}>
           <svg
-            width={800}
-            height={600}
+            width={imageData?.width || 800}
+            height={imageData?.height || 600}
             style={{ display: 'block', maxWidth: '100%' }}
           >
             {tiles.map(tile => (

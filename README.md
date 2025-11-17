@@ -49,10 +49,6 @@ npm run test
 - `src/utils/` - Export utilities for CSV and SVG formats
 - `src/types/` - TypeScript type definitions
 
-## Implementation Details
-
-For detailed information about the mosaic generation algorithms, configuration options, and export formats, see [PLAN.md](./PLAN.md).
-
 ## License
 
 MIT
