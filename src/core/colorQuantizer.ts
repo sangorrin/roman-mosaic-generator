@@ -11,21 +11,30 @@
  */
 export function quantizeColors(
   imageData: ImageData,
-  _palette: string[]
+  palette: string[]
 ): Uint8Array {
-  const pixels = imageData.data
-  const result = new Uint8Array(pixels.length / 4)
+  const pixels = imageData.data;
+  const result = new Uint8Array(pixels.length / 4);
 
-  // TODO: Convert palette to LAB color space for perceptual matching
-  // const paletteLAB = palette.map(hex => rgbToLab(hexToRgb(hex)))
+  // Convert palette to LAB color space for perceptual matching
+  const paletteLAB = palette.map(hex => rgbToLab(hexToRgb(hex)));
 
   for (let i = 0; i < pixels.length; i += 4) {
-    // TODO: Implement color distance calculation in LAB space
-    // For now, just use first color
-    result[i / 4] = 0
+    const rgb = { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] };
+    const lab = rgbToLab(rgb);
+    let minDist = Infinity;
+    let closestIdx = 0;
+    for (let j = 0; j < paletteLAB.length; j++) {
+      const dist = colorDistance(lab, paletteLAB[j]);
+      if (dist < minDist) {
+        minDist = dist;
+        closestIdx = j;
+      }
+    }
+    result[i / 4] = closestIdx;
   }
 
-  return result
+  return result;
 }
 
 /**
@@ -49,12 +58,48 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
  * @param rgb - RGB color object
  * @returns LAB color object {l, a, b}
  */
-export function rgbToLab(_rgb: {
-  r: number
-  g: number
-  b: number
+export function rgbToLab(rgb: {
+  r: number;
+  g: number;
+  b: number;
 }): { l: number; a: number; b: number } {
-  // TODO: Implement RGB to LAB conversion
-  // This is a complex transformation involving XYZ color space
-  return { l: 0, a: 0, b: 0 }
+  // Convert RGB [0,255] to sRGB [0,1]
+  let r = rgb.r / 255;
+  let g = rgb.g / 255;
+  let b = rgb.b / 255;
+
+  // sRGB to linear RGB
+  r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+  g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+  b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+  // Linear RGB to XYZ
+  const x = r * 0.4124 + g * 0.3576 + b * 0.1805;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = r * 0.0193 + g * 0.1192 + b * 0.9505;
+
+  // Normalize for D65 white point
+  const X = x / 0.95047;
+  const Y = y / 1.00000;
+  const Z = z / 1.08883;
+
+  // XYZ to LAB
+  function f(t: number) {
+    return t > 0.008856 ? Math.pow(t, 1 / 3) : (7.787 * t) + (16 / 116);
+  }
+  const l = (116 * f(Y)) - 16;
+  const a = 500 * (f(X) - f(Y));
+  const b_ = 200 * (f(Y) - f(Z));
+  return { l, a, b: b_ };
+}
+
+/**
+ * Calculates Euclidean distance between two LAB colors
+ */
+function colorDistance(lab1: { l: number; a: number; b: number }, lab2: { l: number; a: number; b: number }): number {
+  return Math.sqrt(
+    Math.pow(lab1.l - lab2.l, 2) +
+    Math.pow(lab1.a - lab2.a, 2) +
+    Math.pow(lab1.b - lab2.b, 2)
+  );
 }

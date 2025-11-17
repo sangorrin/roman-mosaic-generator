@@ -52,47 +52,25 @@
 
 ***
 
+
 ### 2. Mosaic Generation Algorithm
 
-**Phase 1: Image Preprocessing**
+**Core Algorithm: Hausner's Decorative Mosaic (SIGGRAPH 2001)**
 
-- Load image to canvas
-- Resize to configurable max dimensions (e.g., 800x600px) for performance
-- Apply edge detection (Sobel or Canny algorithm) to identify major edges
+- Use Hausner's algorithm for tile placement and orientation:
+  - Compute a flow field from image edges/contours
+  - Place tiles (tesserae) using centroidal Voronoi relaxation, guided by the flow field
+  - Orient tiles along flow field directions for natural alignment
+  - Enforce non-overlapping and even distribution
+  - Assign colors by sampling the underlying image and mapping to palette
+- Artistic adjustments:
+  - Add grout spacing (1-2px gaps)
+  - Vary tile sizes and shapes for organic effect
 
-**Phase 2: Color Quantization**
-
-- Define predefined color palette (8-16 roman mosaic colors):
-    - Whites (limestone, marble)
-    - Blacks (basalt, slate)
-    - Reds/terracotta
-    - Ochres/yellows
-    - Blues (rare, lapis lazuli)
-    - Greens (serpentine)
-    - Browns
-- Apply K-means clustering or median-cut algorithm to map image colors to palette
-- Use color distance in LAB color space for perceptual accuracy
-
-**Phase 3: Tile Grid Generation**
-
-- Divide image into grid based on configurable tile size (default: 10x10px tiles)
-- For each tile:
-    - Sample dominant color (average or median)
-    - Map to nearest palette color
-    - Store position (x, y), color index, size
-
-**Phase 4: Edge Alignment**
-
-- Detect edge orientation using gradient direction
-- Rotate tile orientation to follow edges (0°, 45°, 90°, 135°)
-- Apply "flow field" technique where tiles align with image contours
-- Implement **anisotropic tiling** for curved features
-
-**Phase 5: Artistic Adjustments**
-
-- Add slight random rotation variance (±5°) for organic look
-- Implement grout spacing (1-2px gaps between tiles)
-- Optional: Vary tile sizes for emphasis areas (larger tiles in backgrounds)
+**Implementation Notes:**
+- Remove grid-based and basic Voronoi tiling from the plan
+- Focus on Hausner's method for all mosaic generation and orientation
+- See SIGGRAPH 2001 paper for algorithm details and pseudocode
 
 ***
 
@@ -301,15 +279,15 @@ function detectEdges(imageData: ImageData): Float32Array {
   const width = imageData.width;
   const height = imageData.height;
   const gradients = new Float32Array(width * height);
-  
+
   // Sobel kernels
   const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
   const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-  
+
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       let gx = 0, gy = 0;
-      
+
       // Apply convolution
       for (let ky = -1; ky <= 1; ky++) {
         for (let kx = -1; kx <= 1; kx++) {
@@ -320,12 +298,12 @@ function detectEdges(imageData: ImageData): Float32Array {
           gy += gray * sobelY[kernelIdx];
         }
       }
-      
+
       // Gradient magnitude and direction
       gradients[y * width + x] = Math.atan2(gy, gx);
     }
   }
-  
+
   return gradients;
 }
 ```
@@ -339,18 +317,18 @@ function detectEdges(imageData: ImageData): Float32Array {
 function quantizeColors(imageData: ImageData, palette: string[]): Uint8Array {
   const pixels = imageData.data;
   const result = new Uint8Array(pixels.length / 4);
-  
+
   // Convert palette to LAB color space for perceptual matching
   const paletteLAB = palette.map(hex => rgbToLab(hexToRgb(hex)));
-  
+
   for (let i = 0; i < pixels.length; i += 4) {
     const rgb = { r: pixels[i], g: pixels[i+1], b: pixels[i+2] };
     const lab = rgbToLab(rgb);
-    
+
     // Find nearest palette color
     let minDist = Infinity;
     let closestIdx = 0;
-    
+
     for (let j = 0; j < paletteLAB.length; j++) {
       const dist = colorDistance(lab, paletteLAB[j]);
       if (dist < minDist) {
@@ -358,10 +336,10 @@ function quantizeColors(imageData: ImageData, palette: string[]): Uint8Array {
         closestIdx = j;
       }
     }
-    
+
     result[i / 4] = closestIdx;
   }
-  
+
   return result;
 }
 ```

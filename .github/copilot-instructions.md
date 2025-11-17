@@ -5,15 +5,21 @@ This repository implements a web-based "roman mosaic" generator (front-end heavy
 ### Big picture (what to know first)
 
 - Frontend-first app: React + TypeScript + Vite (planned). Main responsibilities: image upload, tile/grid generation, interactive editing (Fabric.js), and exports (CSV, SVG, JPEG).
-- Core algorithm pieces are described in `PLAN.md`: edge detection (`detectEdges`), color quantization (`quantizeColors`), and tile alignment (`alignTileToEdge`). These are the primary places to start when modifying image-processing behavior.
+
+- Core algorithm is Hausner's decorative mosaic (SIGGRAPH 2001):
+  - Flow field computation from image edges
+  - Centroidal Voronoi relaxation for tile placement
+  - Tile orientation follows flow field
+  - Color quantization and palette mapping
 - Exports follow strict formats. CSV column order is important for downstream tooling: `tile_id,x_position,y_position,width,height,color_hex,color_name,rotation_degrees` (see `PLAN.md` CSV example).
 
 ### Files and locations to inspect or add (plan-driven)
 
+
 - `src/core/imageProcessor.ts` — image load, resize, basic canvas helpers
-- `src/core/edgeDetector.ts` — Sobel/Canny edge logic (see `PLAN.md` for a reference implementation)
+- `src/core/edgeDetector.ts` — edge logic for flow field computation
 - `src/core/colorQuantizer.ts` — palette mapping (LAB color comparisons are expected)
-- `src/core/mosaicGenerator.ts` — grid/tile generation and alignment logic
+- `src/core/mosaicGenerator.ts` — Hausner mosaic generation and tile alignment logic
 - `src/components/MosaicCanvas.tsx` — Fabric.js wrapper and editing tools
 - `src/utils/exportCSV.ts`, `src/utils/exportSVG.ts`, `src/utils/exportJPEG.ts` — exporters; follow CSV and SVG structures in `PLAN.md`
 
@@ -48,7 +54,8 @@ These values appear across the plan and test data; changing them affects both re
 
 ### How to modify algorithms safely
 
-- Start with `PLAN.md` reference snippets: small functions exist (`detectEdges`, `quantizeColors`, `alignTileToEdge`). Port these into `src/core/` and add unit tests for their inputs/outputs.
+
+- Start with Hausner's algorithm reference: implement flow field, centroidal Voronoi relaxation, and tile orientation in `src/core/mosaicGenerator.ts`. Add unit tests for core steps.
 - Preserve data contracts: the mosaic generator should output a tile list of objects with `{tile_id, x, y, width, height, color_hex, color_name, rotation_degrees}` to ensure exporters continue to work.
 
 ### Quick checks for PR reviewers / AI agents

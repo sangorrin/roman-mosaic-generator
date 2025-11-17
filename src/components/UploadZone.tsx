@@ -6,11 +6,34 @@
 
 import React, { useRef, useState } from 'react';
 import { loadImage } from '../core/imageProcessor';
+import { detectEdges } from '../core/edgeDetector';
+import { quantizeColors } from '../core/colorQuantizer';
+import { generateMosaic } from '../core/mosaicGenerator';
+// Expanded palette with color names
+const PALETTE = [
+  { hex: '#F5F5DC', name: 'beige' },
+  { hex: '#8B4513', name: 'brown' },
+  { hex: '#A9A9A9', name: 'gray' },
+  { hex: '#FFD700', name: 'yellow' },
+  { hex: '#4682B4', name: 'blue' },
+  { hex: '#228B22', name: 'green' },
+  { hex: '#000000', name: 'black' },
+  { hex: '#FF6347', name: 'red' },
+  { hex: '#FFF8DC', name: 'ivory' },
+  { hex: '#C0C0C0', name: 'silver' },
+  { hex: '#B22222', name: 'firebrick' },
+  { hex: '#D2B48C', name: 'tan' },
+  { hex: '#8FBC8F', name: 'sage' },
+  { hex: '#2F4F4F', name: 'slate' },
+  { hex: '#E9967A', name: 'terracotta' },
+  { hex: '#DAA520', name: 'ochre' },
+];
 
-function UploadZone() {
+function UploadZone({ onTilesGenerated }: { onTilesGenerated?: (tiles: any) => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tileCount, setTileCount] = useState<number | null>(null);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -26,12 +49,18 @@ function UploadZone() {
       return;
     }
     setError(null);
-    // Show preview
     setPreviewUrl(URL.createObjectURL(file));
-    // Load and process image
+    setTileCount(null);
     try {
-      await loadImage(file);
-      // You can pass ImageData to mosaic generator here
+      const imageData = await loadImage(file);
+      // Step 1: Edge detection
+      const gradients = detectEdges(imageData);
+      // Step 2: Color quantization
+      const paletteHex = PALETTE.map(p => p.hex);
+      const paletteIndices = quantizeColors(imageData, paletteHex);
+      const tiles = generateMosaic(imageData, gradients, paletteIndices, PALETTE, 10);
+      setTileCount(tiles.length);
+      if (onTilesGenerated) onTilesGenerated(tiles);
     } catch (e) {
       setError('Failed to process image.');
     }
@@ -94,6 +123,11 @@ function UploadZone() {
             style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '4px' }}
           />
         </div>
+      )}
+      {tileCount !== null && (
+        <p style={{ marginTop: '1rem', color: '#333' }}>
+          Mosaic generated: <strong>{tileCount}</strong> tiles
+        </p>
       )}
     </div>
   );

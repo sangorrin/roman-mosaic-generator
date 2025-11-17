@@ -1,10 +1,15 @@
-import UploadZone from './components/UploadZone'
-import MosaicCanvas from './components/MosaicCanvas'
-import ConfigPanel from './components/ConfigPanel'
+
+import React, { useState } from 'react';
+import UploadZone from './components/UploadZone';
+import MosaicCanvas from './components/MosaicCanvas';
+import ConfigPanel from './components/ConfigPanel';
+import type { MosaicTile } from './types/mosaic';
 
 function App() {
+  const [tiles, setTiles] = useState<MosaicTile[] | null>(null);
+
   return (
-    <div style={{ 
+    <div style={{
       fontFamily: 'system-ui, -apple-system, sans-serif',
       padding: '2rem',
       maxWidth: '1200px',
@@ -18,14 +23,13 @@ function App() {
           Transform your images into beautiful roman-style mosaics — scaffold
         </p>
       </header>
-      
       <div style={{ display: 'grid', gap: '2rem' }}>
-        <UploadZone />
+        <UploadZone onTilesGenerated={setTiles} />
         <ConfigPanel />
-        <MosaicCanvas />
+        <MosaicCanvas tiles={tiles} />
       </div>
     </div>
-  )
+  );
 }
 
 export default App
