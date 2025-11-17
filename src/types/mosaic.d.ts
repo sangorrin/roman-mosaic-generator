@@ -32,23 +32,3 @@ export interface MosaicTile {
   /** Rotation angle in degrees (0-359) */
   rotation_degrees: number
 }
-
-/**
- * Configuration options for mosaic generation
- */
-export interface MosaicConfig {
-  /** Base dimension of square tiles (pixels) */
-  tileSize: number
-
-  /** Color palette preset name */
-  colorPalette: string
-
-  /** Enable edge-aligned tiling */
-  edgeDetection: boolean
-
-  /** Random rotation variance for organic feel (degrees) */
-  rotationVariance: number
-
-  /** Spacing between tiles (pixels) */
-  groutWidth: number
-}
