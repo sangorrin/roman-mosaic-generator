@@ -7,7 +7,6 @@ import type { MosaicTile } from '../types/mosaic';
 
 export interface HausnerConfig {
   tileSize: number;
-  numTiles: number;
   palette: { hex: string; name: string }[];
   groutWidth: number;
   rotationVariance: number;
@@ -37,7 +36,6 @@ export function generateHausnerMosaic(
   const width = imageData.width;
   const height = imageData.height;
   const tileSize = config.tileSize;
-  const numTiles = config.numTiles;
   const gridCols = Math.floor(width / tileSize);
   const gridRows = Math.floor(height / tileSize);
   const sites: { x: number; y: number }[] = [];
@@ -47,9 +45,7 @@ export function generateHausnerMosaic(
       const x = col * tileSize + tileSize / 2 + (Math.random() - 0.5) * jitter;
       const y = row * tileSize + tileSize / 2 + (Math.random() - 0.5) * jitter;
       sites.push({ x, y });
-      if (sites.length >= numTiles) break;
     }
-    if (sites.length >= numTiles) break;
   }
 
   // 3. Centroidal Voronoi relaxation, guided by flow field

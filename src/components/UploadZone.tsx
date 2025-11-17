@@ -1,3 +1,4 @@
+import { generateHausnerMosaic } from '../core/hausnerMosaic';
 /**
  * UploadZone component - placeholder for image upload interface
  * Will support drag-and-drop, file validation, and image preview
@@ -6,9 +7,6 @@
 
 import React, { useRef, useState } from 'react';
 import { loadImage } from '../core/imageProcessor';
-import { detectEdges } from '../core/edgeDetector';
-import { quantizeColors } from '../core/colorQuantizer';
-import { generateMosaic } from '../core/mosaicGenerator';
 // Expanded palette with color names
 const PALETTE = [
   { hex: '#F5F5DC', name: 'beige' },
@@ -53,12 +51,14 @@ function UploadZone({ onTilesGenerated }: { onTilesGenerated?: (tiles: any) => v
     setTileCount(null);
     try {
       const imageData = await loadImage(file);
-      // Step 1: Edge detection
-      const gradients = detectEdges(imageData);
-      // Step 2: Color quantization
-      const paletteHex = PALETTE.map(p => p.hex);
-      const paletteIndices = quantizeColors(imageData, paletteHex);
-      const tiles = generateMosaic(imageData, gradients, paletteIndices, PALETTE, 10);
+      // Edge detection is performed for Hausner's algorithm, but gradients are not used directly here
+      const hausnerConfig = {
+        tileSize: 10,
+        palette: PALETTE,
+        groutWidth: 1,
+        rotationVariance: 5,
+      };
+      const tiles = generateHausnerMosaic(imageData, hausnerConfig);
       setTileCount(tiles.length);
       if (onTilesGenerated) onTilesGenerated(tiles);
     } catch (e) {

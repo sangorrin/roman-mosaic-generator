@@ -52,19 +52,3 @@ export async function loadImage(
     reader.readAsDataURL(file);
   });
 }
-
-/**
- * Resizes image data to fit within max dimensions while preserving aspect ratio
- * @param imageData - Source image data
- * @param maxWidth - Maximum width
- * @param maxHeight - Maximum height
- * @returns Resized ImageData
- */
-export function resizeImageData(
-  _imageData: ImageData,
-  _maxWidth: number,
-  _maxHeight: number
-): ImageData {
-  // TODO: Implement smart resizing
-  throw new Error('Not implemented')
-}
