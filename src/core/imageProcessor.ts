@@ -11,15 +11,46 @@
  * @returns Promise resolving to ImageData
  */
 export async function loadImage(
-  _file: File,
-  _maxWidth = 800,
-  _maxHeight = 600
+  file: File,
+  maxWidth = 800,
+  maxHeight = 600
 ): Promise<ImageData> {
-  // TODO: Implement image loading and resizing
-  // - Create Image element from file
-  // - Draw to canvas with dimension constraints
-  // - Extract ImageData
-  throw new Error('Not implemented')
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        const aspect = width / height;
+        // Resize if needed
+        if (width > maxWidth) {
+          width = maxWidth;
+          height = Math.round(width / aspect);
+        }
+        if (height > maxHeight) {
+          height = maxHeight;
+          width = Math.round(height * aspect);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas context error'));
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          const imageData = ctx.getImageData(0, 0, width, height);
+          resolve(imageData);
+        } catch (e) {
+          reject(new Error('Failed to extract ImageData'));
+        }
+      };
+      img.onerror = () => reject(new Error('Image load error'));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error('File read error'));
+    reader.readAsDataURL(file);
+  });
 }
 
 /**

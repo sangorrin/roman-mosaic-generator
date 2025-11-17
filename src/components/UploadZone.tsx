@@ -3,15 +3,79 @@
  * Will support drag-and-drop, file validation, and image preview
  * See PLAN.md section "Image Upload Interface" for implementation details
  */
+
+import React, { useRef, useState } from 'react';
+import { loadImage } from '../core/imageProcessor';
+
 function UploadZone() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Unsupported file type.');
+      return;
+    }
+    // Validate file size
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File is too large (max 10MB).');
+      return;
+    }
+    setError(null);
+    // Show preview
+    setPreviewUrl(URL.createObjectURL(file));
+    // Load and process image
+    try {
+      await loadImage(file);
+      // You can pass ImageData to mosaic generator here
+    } catch (e) {
+      setError('Failed to process image.');
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    handleFiles(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFiles(e.target.files);
+  };
+
   return (
-    <div style={{
-      border: '2px dashed #ccc',
-      borderRadius: '8px',
-      padding: '3rem',
-      textAlign: 'center',
-      backgroundColor: '#f9f9f9'
-    }}>
+    <div
+      style={{
+        border: '2px dashed #ccc',
+        borderRadius: '8px',
+        padding: '3rem',
+        textAlign: 'center',
+        backgroundColor: '#f9f9f9',
+        cursor: 'pointer',
+        position: 'relative',
+      }}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onClick={handleClick}
+    >
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        ref={fileInputRef}
+        onChange={handleChange}
+      />
       <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Upload Image</h2>
       <p style={{ color: '#666', marginBottom: '1rem' }}>
         Drag and drop an image here, or click to select
@@ -19,8 +83,20 @@ function UploadZone() {
       <p style={{ fontSize: '0.875rem', color: '#999' }}>
         Supports JPEG, PNG, WebP (max 10MB)
       </p>
+      {error && (
+        <p style={{ color: 'red', marginTop: '1rem' }}>{error}</p>
+      )}
+      {previewUrl && (
+        <div style={{ marginTop: '1rem' }}>
+          <img
+            src={previewUrl}
+            alt="Preview"
+            style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '4px' }}
+          />
+        </div>
+      )}
     </div>
-  )
+  );
 }
 
 export default UploadZone
